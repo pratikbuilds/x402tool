@@ -203,7 +203,15 @@ function wrapFetchWithPayment(
       "PAYMENT-RESPONSE,X-PAYMENT-RESPONSE"
     );
 
-    return fetchFn(clonedRequest);
+    const paidResponse = await fetchFn(clonedRequest);
+    if (!paidResponse.ok) {
+      const text = await paidResponse.text();
+      const bodyDetail = (text || "(empty)").slice(0, 500);
+      throw new Error(
+        `Request failed after payment: ${paidResponse.status} ${paidResponse.statusText} - ${bodyDetail}`
+      );
+    }
+    return paidResponse;
   };
 }
 

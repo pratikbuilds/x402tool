@@ -93,9 +93,10 @@ function createRequestCommand(method: "GET" | "POST") {
       "Query parameter (can be used multiple times)",
       parseQueryOption
     )
-    .option("--timeout <ms>", "Request timeout in milliseconds", (v) =>
-      parseInt(v, 10)
-    )
+    .option("--timeout <ms>", "Request timeout in milliseconds", (v) => {
+      const n = parseInt(v, 10);
+      return Number.isFinite(n) && n >= 0 ? n : undefined;
+    })
     .option("-o, --output <path>", "Write response to file instead of stdout");
 }
 
