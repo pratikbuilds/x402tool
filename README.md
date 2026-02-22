@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="assets/x402tool-cover.png" alt="x402tool" width="800" />
+</div>
+
 # x402tool
 
 [![npm version](https://img.shields.io/npm/v/x402tool.svg)](https://www.npmjs.com/package/x402tool)
