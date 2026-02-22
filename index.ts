@@ -1,141 +1,149 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import { buildUrlWithQueryParams, parseQueryOption } from "./src/utils/url.js";
-import { loadKeypair } from "./src/utils/keypair.js";
-import { makeDryRunRequest, makePaymentRequest } from "./src/utils/requests.js";
 import {
-  fetchPaymentRequirements,
-  resolveNetwork,
-} from "./src/utils/payment.js";
+  buildUrlWithQueryParams,
+  parseQueryOption,
+  validateUrlScheme,
+} from "./src/utils/url.js";
+import { loadSvmSigner } from "./src/utils/keypair.js";
+import { makeDryRunRequest, makePaymentRequest } from "./src/utils/requests.js";
+import { getErrorMessage } from "./src/utils/error.js";
 
 const program = new Command();
 
-program
-  .name("x402tool")
-  .description("A CLI to call x402 apis on Solana")
-  .version("0.1.0");
+type RequestOptions = {
+  keypair?: string;
+  dryRun?: boolean;
+  rpcUrl?: string;
+  query?: Record<string, string>;
+  body?: string;
+  timeout?: number;
+  output?: string;
+  json?: boolean;
+  quiet?: boolean;
+};
 
-program
-  .command("GET")
-  .description("Sends a x402 GET Request")
-  .argument("<url>", "url to send the request to")
-  .option("--keypair <path>", "Path to Solana keypair file")
-  .option("--dry-run", "Dry run the request and get the payment payload")
-  .option("--network <network>", "Network to use")
-  .option(
-    "--query <key=value>",
-    "Query parameter (can be used multiple times)",
-    parseQueryOption
-  )
+async function handleRequest(
+  url: string,
+  options: RequestOptions,
+  method: "GET" | "POST"
+): Promise<void> {
+  validateUrlScheme(url);
+  const finalUrl = buildUrlWithQueryParams(url, options.query);
+
+  let bodyData: unknown;
+  if (method === "POST" && options.body) {
+    try {
+      bodyData = JSON.parse(options.body);
+    } catch {
+      throw new Error("--body must be valid JSON");
+    }
+  }
+
+  if (options.dryRun) {
+    await makeDryRunRequest(finalUrl, {
+      method,
+      data: method === "POST" ? bodyData : undefined,
+      timeout: options.timeout,
+      outputPath: options.output,
+      json: options.json,
+      quiet: options.quiet,
+    });
+    return;
+  }
+
+  if (!options.keypair) {
+    throw new Error("--keypair is required when not using --dry-run");
+  }
+
+  const signer = await loadSvmSigner(options.keypair);
+  if (!options.quiet) {
+    console.log("Wallet:", signer.address);
+  }
+
+  const rpcUrl = options.rpcUrl || process.env.SOLANA_RPC_URL;
+  await makePaymentRequest(finalUrl, signer, {
+    method,
+    body: method === "POST" && bodyData ? JSON.stringify(bodyData) : undefined,
+    rpcUrl,
+    timeout: options.timeout,
+    outputPath: options.output,
+  });
+}
+
+function createRequestCommand(method: "GET" | "POST") {
+  const cmd =
+    method === "GET"
+      ? program.command("GET").description("Send a GET request to an x402-protected API")
+      : program.command("POST").description("Send a POST request to an x402-protected API");
+
+  return cmd
+    .argument("<url>", "URL to send the request to")
+    .option("--keypair <path>", "Path to Solana keypair file (required for payment)")
+    .option("--dry-run", "Preview payment requirements without making payment")
+    .option("--json", "Machine-readable JSON output (402, errors)")
+    .option("--quiet", "Suppress Wallet and timing output")
+    .option(
+      "--rpc-url <url>",
+      "Solana RPC URL (or SOLANA_RPC_URL env var). Recommended for mainnet."
+    )
+    .option(
+      "--query <key=value>",
+      "Query parameter (can be used multiple times)",
+      parseQueryOption
+    )
+    .option("--timeout <ms>", "Request timeout in milliseconds", (v) =>
+      parseInt(v, 10)
+    )
+    .option("-o, --output <path>", "Write response to file instead of stdout");
+}
+
+const getExamples = `
+Examples:
+  x402tool GET https://api.example.com/data --dry-run
+  x402tool GET https://api.example.com/data --keypair ~/.config/solana/auth.json
+  x402tool GET https://api.example.com/data -o response.json
+`;
+
+const postExamples = `
+Examples:
+  x402tool POST https://api.example.com/action --dry-run --body '{"key":"value"}'
+  x402tool POST https://api.example.com/action --keypair ~/.config/solana/auth.json --body '{}'
+  x402tool POST https://api.example.com/action -o response.json
+`;
+
+createRequestCommand("GET")
+  .addHelpText("after", getExamples)
   .action(async (url, options) => {
     try {
-      const finalUrl = buildUrlWithQueryParams(url, options.query);
-
-      if (options.dryRun) {
-        await makeDryRunRequest(finalUrl, {
-          method: "GET",
-        });
-        return;
-      }
-
-      // Payment mode - requires keypair
-      if (!options.keypair) {
-        console.error("Error: --keypair is required when not using --dry-run");
-        process.exit(1);
-      }
-
-      const keypair = loadKeypair(options.keypair);
-      console.log("Wallet:", keypair.publicKey.toString());
-
-      const { requirements, solanaOption } = await fetchPaymentRequirements(
-        finalUrl,
-        "GET"
-      );
-
-      // If no payment required (200 response), requirements will be null
-      if (!requirements || !solanaOption) {
-        return;
-      }
-
-      const network = resolveNetwork(solanaOption.network, options.network);
-      console.log("Network:", network);
-      console.log("Asset:", solanaOption.asset);
-
-      await makePaymentRequest(finalUrl, keypair, network, solanaOption.asset, {
-        method: "GET",
-      });
+      await handleRequest(url, options, "GET");
     } catch (error) {
-      console.error(
-        "Error:",
-        error instanceof Error ? error.message : String(error)
-      );
+      if (options.json) {
+        console.log(
+          JSON.stringify({ error: getErrorMessage(error) })
+        );
+      } else {
+        console.error("Error:", getErrorMessage(error));
+      }
       process.exit(1);
     }
   });
 
-program
-  .command("POST")
-  .description("Sends a x402 POST request")
-  .argument("<url>", "url to send the request to")
-  .option("--keypair <path>", "Path to Solana keypair file")
-  .option("--dry-run", "Dry run the request and get the payment payload")
-  .option("--network <network>", "Network to use")
-  .option("--query <key=value>", "Query parameter", parseQueryOption)
+createRequestCommand("POST")
   .option("--body <json>", "JSON body for POST request (as JSON string)")
+  .addHelpText("after", postExamples)
   .action(async (url, options) => {
     try {
-      const finalUrl = buildUrlWithQueryParams(url, options.query);
-
-      let bodyData: unknown;
-      if (options.body) {
-        try {
-          bodyData = JSON.parse(options.body);
-        } catch (e) {
-          console.error("Error: --body must be valid JSON");
-          process.exit(1);
-        }
-      }
-
-      if (options.dryRun) {
-        await makeDryRunRequest(finalUrl, {
-          method: "POST",
-          data: bodyData,
-        });
-        return;
-      }
-
-      if (!options.keypair) {
-        console.error("Error: --keypair is required when not using --dry-run");
-        process.exit(1);
-      }
-
-      const keypair = loadKeypair(options.keypair);
-      console.log("Wallet:", keypair.publicKey.toString());
-
-      const { requirements, solanaOption } = await fetchPaymentRequirements(
-        finalUrl,
-        "POST",
-        bodyData
-      );
-
-      if (!requirements || !solanaOption) {
-        return;
-      }
-
-      const network = resolveNetwork(solanaOption.network, options.network);
-      console.log("Network:", network);
-      console.log("Asset:", solanaOption.asset);
-
-      await makePaymentRequest(finalUrl, keypair, network, solanaOption.asset, {
-        method: "POST",
-        body: bodyData ? JSON.stringify(bodyData) : undefined,
-      });
+      await handleRequest(url, options, "POST");
     } catch (error) {
-      console.error(
-        "Error:",
-        error instanceof Error ? error.message : String(error)
-      );
+      if (options.json) {
+        console.log(
+          JSON.stringify({ error: getErrorMessage(error) })
+        );
+      } else {
+        console.error("Error:", getErrorMessage(error));
+      }
       process.exit(1);
     }
   });

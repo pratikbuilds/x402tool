@@ -1,4 +1,4 @@
-import type { x402PaymentRequiredResponse } from "@faremeter/types/x402";
+import type { PaymentRequired } from "@x402/core/schemas";
 
 // ANSI color codes
 const colors = {
@@ -13,8 +13,13 @@ const colors = {
   gray: "\x1b[90m",
 };
 
+const noColor = !!(
+  process.env.NO_COLOR !== undefined &&
+  process.env.NO_COLOR !== ""
+);
+
 function colorize(text: string, color: keyof typeof colors): string {
-  return `${colors[color]}${text}${colors.reset}`;
+  return noColor ? text : `${colors[color]}${text}${colors.reset}`;
 }
 
 function formatValue(value: unknown): string {
@@ -23,10 +28,74 @@ function formatValue(value: unknown): string {
   return JSON.stringify(value);
 }
 
-export function displayPaymentRequirements(
-  payResp: ReturnType<typeof x402PaymentRequiredResponse>
-) {
-  // Check if it's an error response
+function getAmount(accept: PaymentRequired["accepts"][number]): string {
+  return "maxAmountRequired" in accept ? accept.maxAmountRequired : accept.amount;
+}
+
+/** Solana mint addresses to display symbol */
+const MINT_TO_SYMBOL: Record<string, string> = {
+  EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v: "USDC",
+  Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB: "USDT",
+  So11111111111111111111111111111111111111112: "SOL",
+};
+
+function getAssetSymbol(asset: string): string {
+  return MINT_TO_SYMBOL[asset] ?? asset.split(":").pop() ?? asset;
+}
+
+function getDecimalsForAsset(asset: string): number {
+  const symbol = getAssetSymbol(asset).toUpperCase();
+  if (symbol === "USDC" || symbol === "USDT") return 6;
+  if (symbol === "SOL") return 9;
+  return 6; // default for unknown stablecoins
+}
+
+function isStablecoin(asset: string): boolean {
+  const symbol = getAssetSymbol(asset).toUpperCase();
+  return symbol === "USDC" || symbol === "USDT";
+}
+
+function formatAmountInUsd(rawAmount: string, asset: string): string {
+  const decimals = getDecimalsForAsset(asset);
+  const value = Number(rawAmount) / 10 ** decimals;
+  const formatted = value.toLocaleString("en-US", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 6,
+  });
+
+  if (isStablecoin(asset)) {
+    return `$${formatted} USD`;
+  }
+  return `${formatted} ${getAssetSymbol(asset)}`;
+}
+
+function getResourceUrl(
+  payResp: PaymentRequired,
+  accept: PaymentRequired["accepts"][number]
+): string {
+  if ("resource" in accept && typeof accept.resource === "string") {
+    return accept.resource;
+  }
+  if ("resource" in payResp && payResp.resource && typeof payResp.resource === "object" && "url" in payResp.resource) {
+    return payResp.resource.url;
+  }
+  return "—";
+}
+
+function getDescription(
+  payResp: PaymentRequired,
+  accept: PaymentRequired["accepts"][number]
+): string {
+  if ("description" in accept && typeof accept.description === "string") {
+    return accept.description;
+  }
+  if ("resource" in payResp && payResp.resource && typeof payResp.resource === "object" && "description" in payResp.resource && payResp.resource.description) {
+    return payResp.resource.description;
+  }
+  return "—";
+}
+
+export function displayPaymentRequirements(payResp: PaymentRequired) {
   if ("error" in payResp || !("x402Version" in payResp)) {
     console.error("Invalid payment response:", payResp);
     return;
@@ -56,7 +125,7 @@ export function displayPaymentRequirements(
   );
   console.log("");
 
-  payResp.accepts.forEach((accept: typeof payResp.accepts[0], index: number) => {
+  payResp.accepts.forEach((accept, index) => {
     console.log(
       colorize(`Payment Option ${index + 1}`, "yellow") +
         colorize(` (${accept.network})`, "dim")
@@ -65,32 +134,22 @@ export function displayPaymentRequirements(
 
     console.log(`  ${colorize("Network:", "cyan")}        ${accept.network}`);
     console.log(
-      `  ${colorize("Asset:", "cyan")}          ${colorize(
-        accept.asset,
-        "green"
-      )}`
+      `  ${colorize("Asset:", "cyan")}          ${colorize(getAssetSymbol(accept.asset), "green")}`
     );
     console.log(
-      `  ${colorize("Pay To:", "cyan")}         ${colorize(
-        accept.payTo,
-        "green"
-      )}`
+      `  ${colorize("Pay To:", "cyan")}         ${colorize(accept.payTo, "green")}`
     );
+    const rawAmount = getAmount(accept);
+    const amountUsd = formatAmountInUsd(rawAmount, accept.asset);
     console.log(
-      `  ${colorize("Amount:", "cyan")}         ${colorize(
-        accept.maxAmountRequired,
-        "yellow"
-      )}`
+      `  ${colorize("Amount:", "cyan")}         ${colorize(amountUsd, "yellow")}`
     );
     console.log(`  ${colorize("Scheme:", "cyan")}         ${accept.scheme}`);
     console.log(
-      `  ${colorize("Description:", "cyan")}    ${accept.description}`
+      `  ${colorize("Description:", "cyan")}    ${getDescription(payResp, accept)}`
     );
     console.log(
-      `  ${colorize("Resource:", "cyan")}      ${colorize(
-        accept.resource,
-        "blue"
-      )}`
+      `  ${colorize("Resource:", "cyan")}      ${colorize(getResourceUrl(payResp, accept), "blue")}`
     );
     console.log(
       `  ${colorize("Timeout:", "cyan")}       ${accept.maxTimeoutSeconds}s`
@@ -107,7 +166,6 @@ export function displayPaymentRequirements(
       });
     }
 
-    // Add separator between options (except for the last one)
     if (index < payResp.accepts.length - 1) {
       console.log("");
       console.log(colorize("─".repeat(60), "dim"));
