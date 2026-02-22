@@ -10,7 +10,7 @@
 
 Pay for APIs with x402-protected on Solana, from the command line.
 
-`x402tool` is like `curl` for paid APIs. Hit any [x402-protected](https://www.x402.org/) endpoint, and the CLI handles the payment and retries automatically.
+`x402tool` is like `curl` for x402 APIs. Hit any [x402-protected](https://www.x402.org/) endpoint, and the CLI handles the payment and retries automatically.
 
 ```bash
 # See what it costs
