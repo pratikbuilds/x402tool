@@ -8,7 +8,7 @@
 [![npm downloads](https://img.shields.io/npm/dm/x402tool.svg)](https://www.npmjs.com/package/x402tool)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Pay for APIs with Solana, from the command line.
+Pay for APIs with x402-protected on Solana, from the command line.
 
 `x402tool` is like `curl` for paid APIs. Hit any [x402-protected](https://www.x402.org/) endpoint, and the CLI handles the payment and retries automatically.
 
@@ -156,17 +156,17 @@ The network (mainnet/devnet) is determined by the API's payment response, not by
 
 ## Options
 
-| Flag | What it does |
-|------|-------------|
-| `--keypair <path>` | Solana keypair for payment |
-| `--dry-run` | Preview costs, don't pay |
-| `--body <json>` | JSON body (POST only) |
-| `--query <k=v>` | Query param (repeatable) |
-| `--rpc-url <url>` | Solana RPC (or `SOLANA_RPC_URL` env) |
-| `--json` | Machine-readable output |
-| `--quiet` | Suppress extra logs |
-| `--timeout <ms>` | Request timeout (default: 30000) |
-| `-o, --output <path>` | Write response to file |
+| Flag                  | What it does                         |
+| --------------------- | ------------------------------------ |
+| `--keypair <path>`    | Solana keypair for payment           |
+| `--dry-run`           | Preview costs, don't pay             |
+| `--body <json>`       | JSON body (POST only)                |
+| `--query <k=v>`       | Query param (repeatable)             |
+| `--rpc-url <url>`     | Solana RPC (or `SOLANA_RPC_URL` env) |
+| `--json`              | Machine-readable output              |
+| `--quiet`             | Suppress extra logs                  |
+| `--timeout <ms>`      | Request timeout (default: 30000)     |
+| `-o, --output <path>` | Write response to file               |
 
 ## Features
 
