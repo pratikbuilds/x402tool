@@ -1,3 +1,18 @@
+export function validateUrlScheme(url: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new Error(`Invalid URL: ${url}`);
+  }
+  const protocol = parsed.protocol;
+  if (protocol !== "http:" && protocol !== "https:") {
+    throw new Error(
+      `URL scheme must be http or https, got ${protocol.slice(0, -1)}`
+    );
+  }
+}
+
 export function buildUrlWithQueryParams(
   baseUrl: string,
   queryParams?: Record<string, string>

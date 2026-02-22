@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="assets/x402tool-cover.png" alt="x402tool" width="800" />
+</div>
+
 # x402tool
 
 [![npm version](https://img.shields.io/npm/v/x402tool.svg)](https://www.npmjs.com/package/x402tool)
@@ -11,8 +15,13 @@ A command-line interface for interacting with x402 APIs on Solana. This CLI tool
 - **Automatic payment handling**: Intercepts 402 Payment Required responses and executes Solana transactions transparently
 - **Dry-run mode**: Inspect payment requirements without executing transactions
 - **HTTP method support**: GET and POST requests with optional JSON payloads
-- **Solana integration**: Mainnet and devnet support with automatic network resolution
+- **Solana integration**: Uses [@x402/svm](https://www.npmjs.com/package/@x402/svm) for payment execution; network is resolved from API payment requirements
 - **Query parameter support**: Multiple query parameters via repeated flags
+- **Agent-friendly output**: `--json` for machine-readable output, `--quiet` to suppress extra logs
+- **Configurable timeout**: Default 30s, overridable via `--timeout`
+- **Output to file**: `-o/--output` writes response to a file (path must be under current directory)
+- **RPC URL**: `--rpc-url` or `SOLANA_RPC_URL` env var (recommended for mainnet)
+- **Security**: URL validation (http/https only), keypair path restricted to cwd or home, `NO_COLOR` support
 
 ## Installation
 
@@ -85,34 +94,69 @@ Add query parameters using the `--query` option (can be used multiple times):
 x402tool GET <url> --query "key1=value1" --query "key2=value2"
 ```
 
-### Network Selection
+### RPC URL (Recommended for Mainnet)
 
-Specify the Solana network to use:
+Provide a Solana RPC URL for payment execution. Without it, the x402 SDK may use public endpoints:
 
 ```bash
-x402tool GET <url> --keypair <path> --network mainnet-beta
-# or
-x402tool GET <url> --keypair <path> --network devnet
+x402tool GET <url> --keypair <path> --rpc-url https://api.mainnet-beta.solana.com
+# or set SOLANA_RPC_URL env var
+export SOLANA_RPC_URL=https://api.mainnet-beta.solana.com
+x402tool GET <url> --keypair <path>
+```
+
+### Output to File
+
+Write the response to a file instead of stdout (path must be under current directory):
+
+```bash
+x402tool GET <url> -o response.json
+x402tool POST <url> --dry-run -o payment-requirements.json
+```
+
+### Agent-Friendly Mode
+
+For scripts and AI agents, use `--json` for machine-readable output and `--quiet` to suppress wallet/timing logs:
+
+```bash
+x402tool GET <url> --dry-run --json
+x402tool POST <url> --keypair <path> --quiet -o result.json
+```
+
+### Timeout
+
+Override the default 30-second timeout:
+
+```bash
+x402tool GET <url> --timeout 60000
 ```
 
 ## Command Options
 
 ### GET Command
 
-- `<url>` (required): The URL to send the GET request to
-- `--keypair <path>`: Path to Solana keypair file (required for payment mode)
+- `<url>` (required): The URL to send the GET request to (must be http or https)
+- `--keypair <path>`: Path to Solana keypair file (required for payment mode; must be under cwd or home)
 - `--dry-run`: Preview payment requirements without making payment
-- `--network <network>`: Solana network to use (`mainnet-beta` or `devnet`)
+- `--json`: Machine-readable JSON output for 402 responses and errors
+- `--quiet`: Suppress wallet address and timing output
+- `--rpc-url <url>`: Solana RPC URL (or use `SOLANA_RPC_URL` env var)
 - `--query <key=value>`: Query parameter (can be used multiple times)
+- `--timeout <ms>`: Request timeout in milliseconds (default: 30000)
+- `-o, --output <path>`: Write response to file (must be under current directory)
 
 ### POST Command
 
-- `<url>` (required): The URL to send the POST request to
-- `--keypair <path>`: Path to Solana keypair file (required for payment mode)
+- `<url>` (required): The URL to send the POST request to (must be http or https)
+- `--keypair <path>`: Path to Solana keypair file (required for payment mode; must be under cwd or home)
 - `--dry-run`: Preview payment requirements without making payment
-- `--network <network>`: Solana network to use (`mainnet-beta` or `devnet`)
+- `--json`: Machine-readable JSON output for 402 responses and errors
+- `--quiet`: Suppress wallet address and timing output
+- `--rpc-url <url>`: Solana RPC URL (or use `SOLANA_RPC_URL` env var)
 - `--query <key=value>`: Query parameter (can be used multiple times)
 - `--body <json>`: JSON body for POST request (as JSON string, optional)
+- `--timeout <ms>`: Request timeout in milliseconds (default: 30000)
+- `-o, --output <path>`: Write response to file (must be under current directory)
 
 ## Examples
 
@@ -133,11 +177,12 @@ x402tool GET "https://jupiter.api.corbits.dev/ultra/v1/order" \
 
 ### Example 2: Jupiter GET Request (With Payment)
 
-Make a paid request to Jupiter API:
+Make a paid request to Jupiter API. Use `--rpc-url` for mainnet:
 
 ```bash
 x402tool GET https://jupiter.api.corbits.dev/tokens/v2/recent \
-  --keypair ~/.config/solana/auth.json
+  --keypair ~/.config/solana/auth.json \
+  --rpc-url https://api.mainnet-beta.solana.com
 ```
 
 ### Example 3: Triton RPC POST Request (Dry Run)
@@ -160,30 +205,35 @@ x402tool POST https://triton.api.corbits.dev \
   --body '{"jsonrpc":"2.0","id":1,"method":"getBalance","params":["corzHctjX9Wtcrkfxz3Se8zdXqJYCaamWcQA7vwKF7Q"]}'
 ```
 
+### Example 5: Agent-Friendly Output
+
+Get machine-readable JSON for scripting or AI agents:
+
+```bash
+x402tool GET https://api.example.com/data --dry-run --json
+x402tool POST https://api.example.com/action --keypair auth.json --quiet -o result.json
+```
+
 ## How It Works
 
-1. **Dry Run Mode**: When `--dry-run` is used, the CLI makes a request (GET or POST) and displays payment requirements if a 402 response is received. No payment is made.
+1. **Dry Run Mode**: When `--dry-run` is used, the CLI makes a request (GET or POST) and displays payment requirements if a 402 response is received. No payment is made. Use `--json` for machine-readable output.
 
 2. **Payment Mode**: When a keypair is provided:
 
    - The CLI fetches payment requirements from the API
-   - If a 402 Payment Required response is received, it extracts Solana payment options
-   - Automatically creates and submits a Solana payment transaction
+   - If a 402 Payment Required response is received, it extracts Solana payment options via [@x402/core](https://www.npmjs.com/package/@x402/core)
+   - Uses [@x402/svm](https://www.npmjs.com/package/@x402/svm) to create and submit a Solana payment transaction
    - Retries the original request with payment proof
 
-3. **Network Resolution**: The CLI automatically resolves network names:
-
-   - `solana-mainnet-beta` → `mainnet-beta`
-   - `solana-devnet` → `devnet`
-   - `solana` → `mainnet-beta`
-   - You can override with `--network` option
-   - User-provided networks are also automatically mapped if they match known patterns
+3. **Network**: The network (mainnet/devnet) is determined by the API's payment requirements, not by a CLI flag. Provide `--rpc-url` or `SOLANA_RPC_URL` for reliable mainnet execution.
 
 4. **POST Requests**: POST requests support optional JSON bodies. If no `--body` is provided, the request is sent without a body. This works consistently in both dry-run and payment modes.
 
+5. **Security**: URLs are validated (http/https only). Keypair paths must be under the current directory or home directory. Set `NO_COLOR=1` to disable colored output.
+
 ## Keypair Format
 
-The keypair file should be a JSON array of numbers (Solana's standard keypair format):
+The keypair file should be a JSON array of numbers (Solana's standard keypair format). The path must be under your current directory or home directory.
 
 ```json
 [123,45,67,...]
@@ -194,6 +244,14 @@ You can generate a keypair using Solana CLI:
 ```bash
 solana-keygen new -o my-keypair.json
 ```
+
+## Dependencies
+
+This CLI uses the [x402](https://github.com/x402-protocol) protocol stack:
+
+- `@x402/core` – Payment requirement parsing and HTTP headers
+- `@x402/svm` – Solana payment execution (ExactSvmScheme, ExactSvmSchemeV1)
+- `@solana/kit` – Keypair loading
 
 ## Development
 
