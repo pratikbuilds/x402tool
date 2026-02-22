@@ -1,5 +1,5 @@
 {
-  "exclude": ["assets"],
+  "exclude": ["assets", "dist"],
   "compilerOptions": {
     // Enable latest features
     "lib": ["ESNext", "DOM"],

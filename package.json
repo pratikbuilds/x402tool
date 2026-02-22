@@ -1,6 +1,6 @@
 {
   "name": "x402tool",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A command-line interface for interacting with x402 APIs on Solana",
   "keywords": [
     "x402",
@@ -13,7 +13,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/pratikbuilds/x402-cli"
+    "url": "https://github.com/pratikbuilds/x402tool"
   },
   "type": "module",
   "main": "dist/index.js",

@@ -25,7 +25,7 @@ function resolveSafeOutputPath(outputPath: string): string {
   const cwdWithSep = cwd.endsWith(path.sep) ? cwd : cwd + path.sep;
   if (resolved !== cwd && !resolved.startsWith(cwdWithSep)) {
     throw new Error(
-      `Invalid output path: "${outputPath}" resolves outside current working directory. Output must be under ${cwd}`
+      `Invalid output path: "${outputPath}" resolves outside current working directory. Output must be under ${cwd}`,
     );
   }
   return resolved;
@@ -33,7 +33,7 @@ function resolveSafeOutputPath(outputPath: string): string {
 
 async function writeOutput(
   content: string,
-  outputPath?: string
+  outputPath?: string,
 ): Promise<void> {
   if (outputPath) {
     const safePath = resolveSafeOutputPath(outputPath);
@@ -52,7 +52,7 @@ export async function makeDryRunRequest(
     outputPath?: string;
     json?: boolean;
     quiet?: boolean;
-  }
+  },
 ): Promise<void> {
   const startTime = performance.now();
 
@@ -89,7 +89,7 @@ export async function makeDryRunRequest(
         const result = parsePaymentRequired(error.response.data);
         if (!result.success) {
           throw new Error(
-            `Invalid payment requirements: ${JSON.stringify(result.error.issues, null, 2)}`
+            `Invalid payment requirements: ${JSON.stringify(result.error.issues, null, 2)}`,
           );
         }
         const payReqOutput = JSON.stringify(result.data, null, 2);
@@ -119,7 +119,7 @@ export async function makeDryRunRequest(
 
 function createPaymentClient(
   signer: ClientSvmSigner,
-  rpcUrl?: string
+  rpcUrl?: string,
 ): x402Client {
   const client = new x402Client();
   const config = rpcUrl ? { rpcUrl } : undefined;
@@ -132,7 +132,7 @@ function createPaymentClient(
 
 function parse402Response(
   getHeader: (name: string) => string | null,
-  body: unknown
+  body: unknown,
 ): PaymentRequiredSchema {
   const header =
     getHeader("PAYMENT-REQUIRED") || getHeader("X-Payment-Required");
@@ -154,7 +154,7 @@ function parse402Response(
 
 function wrapFetchWithPayment(
   fetchFn: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>,
-  client: x402Client
+  client: x402Client,
 ): (input: RequestInfo | URL, init?: RequestInit) => Promise<Response> {
   return async (input, init) => {
     const request = new Request(input, init);
@@ -175,18 +175,18 @@ function wrapFetchWithPayment(
       paymentRequired = parse402Response(getHeader, body);
     } catch (error) {
       throw new Error(
-        `Failed to parse payment requirements: ${getErrorMessage(error)}`
+        `Failed to parse payment requirements: ${getErrorMessage(error)}`,
       );
     }
 
     let paymentPayload;
     try {
       paymentPayload = await client.createPaymentPayload(
-        paymentRequired as Parameters<x402Client["createPaymentPayload"]>[0]
+        paymentRequired as Parameters<x402Client["createPaymentPayload"]>[0],
       );
     } catch (error) {
       throw new Error(
-        `Failed to create payment payload: ${getErrorMessage(error)}`
+        `Failed to create payment payload: ${getErrorMessage(error)}`,
       );
     }
 
@@ -200,7 +200,7 @@ function wrapFetchWithPayment(
     }
     clonedRequest.headers.set(
       "Access-Control-Expose-Headers",
-      "PAYMENT-RESPONSE,X-PAYMENT-RESPONSE"
+      "PAYMENT-RESPONSE,X-PAYMENT-RESPONSE",
     );
 
     const paidResponse = await fetchFn(clonedRequest);
@@ -208,7 +208,7 @@ function wrapFetchWithPayment(
       const text = await paidResponse.text();
       const bodyDetail = (text || "(empty)").slice(0, 500);
       throw new Error(
-        `Request failed after payment: ${paidResponse.status} ${paidResponse.statusText} - ${bodyDetail}`
+        `Request failed after payment: ${paidResponse.status} ${paidResponse.statusText} - ${bodyDetail}`,
       );
     }
     return paidResponse;
@@ -218,13 +218,13 @@ function wrapFetchWithPayment(
 function fetchWithTimeout(
   input: RequestInfo | URL,
   init?: RequestInit,
-  timeoutMs?: number
+  timeoutMs?: number,
 ): Promise<Response> {
   if (!timeoutMs) return fetch(input, init);
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeoutMs);
   return fetch(input, { ...init, signal: controller.signal }).finally(() =>
-    clearTimeout(id)
+    clearTimeout(id),
   );
 }
 
@@ -237,7 +237,7 @@ export async function makePaymentRequest(
     rpcUrl?: string;
     timeout?: number;
     outputPath?: string;
-  }
+  },
 ): Promise<void> {
   const rpcUrl = options?.rpcUrl || process.env.SOLANA_RPC_URL;
   const client = createPaymentClient(signer, rpcUrl);
