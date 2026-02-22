@@ -86,7 +86,23 @@ export async function makeDryRunRequest(
   } catch (error) {
     if (error instanceof AxiosError) {
       if (error.response?.status === 402) {
-        const result = parsePaymentRequired(error.response.data);
+        const headers = error.response?.headers as Record<string, unknown> | undefined;
+        const getHeader = (name: string) => {
+          const h = headers?.[name.toLowerCase()];
+          return typeof h === "string" ? h : null;
+        };
+        const header =
+          getHeader("payment-required") || getHeader("x-payment-required");
+        let payload: unknown = error.response?.data;
+        if (header) {
+          try {
+            const decoded = decodePaymentRequiredHeader(header);
+            payload = decoded;
+          } catch {
+            // Fall through to body
+          }
+        }
+        const result = parsePaymentRequired(payload);
         if (!result.success) {
           throw new Error(
             `Invalid payment requirements: ${JSON.stringify(result.error.issues, null, 2)}`,
