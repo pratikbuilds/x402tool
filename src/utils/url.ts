@@ -44,3 +44,26 @@ export function parseQueryOption(
   prev[key] = value;
   return prev;
 }
+
+export function parseHeaderOption(
+  val: string,
+  prev: Record<string, string> = {}
+): Record<string, string> {
+  const separatorIndex = val.indexOf(":");
+  if (separatorIndex <= 0) {
+    throw new Error(
+      `Invalid header format: ${val}. Use --header "Key: Value"`
+    );
+  }
+
+  const key = val.slice(0, separatorIndex).trim();
+  const value = val.slice(separatorIndex + 1).trim();
+  if (!key) {
+    throw new Error(
+      `Invalid header format: ${val}. Use --header "Key: Value"`
+    );
+  }
+
+  prev[key] = value;
+  return prev;
+}

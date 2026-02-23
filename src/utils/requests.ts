@@ -48,6 +48,7 @@ export async function makeDryRunRequest(
   options?: {
     method?: "GET" | "POST";
     data?: unknown;
+    headers?: Record<string, string>;
     timeout?: number;
     outputPath?: string;
     json?: boolean;
@@ -63,6 +64,7 @@ export async function makeDryRunRequest(
       ...(method === "POST" && options?.data
         ? { "Content-Type": "application/json" }
         : {}),
+      ...options?.headers,
     };
     const axiosConfig = {
       headers,
@@ -250,6 +252,7 @@ export async function makePaymentRequest(
   options?: {
     method?: "GET" | "POST";
     body?: BodyInit | null | undefined;
+    headers?: Record<string, string>;
     rpcUrl?: string;
     timeout?: number;
     outputPath?: string;
@@ -265,6 +268,7 @@ export async function makePaymentRequest(
     const headers = {
       ...DEFAULT_HEADERS,
       ...(options?.body ? { "Content-Type": "application/json" } : {}),
+      ...options?.headers,
     };
 
     const response = await fetchWithPayer(url, {
