@@ -3,6 +3,7 @@
 import { Command } from "commander";
 import {
   buildUrlWithQueryParams,
+  parseHeaderOption,
   parseQueryOption,
   validateUrlScheme,
 } from "./src/utils/url.js";
@@ -17,6 +18,7 @@ type RequestOptions = {
   dryRun?: boolean;
   rpcUrl?: string;
   query?: Record<string, string>;
+  headers?: Record<string, string>;
   body?: string;
   timeout?: number;
   output?: string;
@@ -45,6 +47,7 @@ async function handleRequest(
     await makeDryRunRequest(finalUrl, {
       method,
       data: method === "POST" ? bodyData : undefined,
+      headers: options.headers,
       timeout: options.timeout,
       outputPath: options.output,
       json: options.json,
@@ -66,6 +69,7 @@ async function handleRequest(
   await makePaymentRequest(finalUrl, signer, {
     method,
     body: method === "POST" && bodyData ? JSON.stringify(bodyData) : undefined,
+    headers: options.headers,
     rpcUrl,
     timeout: options.timeout,
     outputPath: options.output,
@@ -93,6 +97,11 @@ function createRequestCommand(method: "GET" | "POST") {
       "Query parameter (can be used multiple times)",
       parseQueryOption
     )
+    .option(
+      "--header <header>",
+      'HTTP header (can be used multiple times), format: "Key: Value" or key=value',
+      parseHeaderOption
+    )
     .option("--timeout <ms>", "Request timeout in milliseconds", (v) => {
       const n = parseInt(v, 10);
       return Number.isFinite(n) && n >= 0 ? n : undefined;
@@ -104,6 +113,7 @@ const getExamples = `
 Examples:
   x402tool GET https://api.example.com/data --dry-run
   x402tool GET https://api.example.com/data --keypair ~/.config/solana/auth.json
+  x402tool GET https://api.example.com/data --header "x-api-key: abc123"
   x402tool GET https://api.example.com/data -o response.json
 `;
 
@@ -111,6 +121,7 @@ const postExamples = `
 Examples:
   x402tool POST https://api.example.com/action --dry-run --body '{"key":"value"}'
   x402tool POST https://api.example.com/action --keypair ~/.config/solana/auth.json --body '{}'
+  x402tool POST https://api.example.com/action --body '{}' --header "x-client-id: test"
   x402tool POST https://api.example.com/action -o response.json
 `;
 
