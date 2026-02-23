@@ -135,6 +135,14 @@ x402tool GET https://agent.metengine.xyz/api/v1/markets/trending \
   -o result.json
 ```
 
+### CoinGecko — simple price (multiple query params)
+
+```bash
+x402tool GET "https://pro-api.coingecko.com/api/v3/x402/simple/price" \
+  --keypair ~/.config/solana/auth.json \
+  --query vs_currencies=usd --query symbols=btc,eth,sol --query include_market_cap=true
+```
+
 ## Keypair
 
 Standard Solana keypair format — a JSON array of numbers. Must be under cwd or home.
