@@ -18,7 +18,7 @@ type RequestOptions = {
   dryRun?: boolean;
   rpcUrl?: string;
   query?: Record<string, string>;
-  headers?: Record<string, string>;
+  header?: Record<string, string>;
   body?: string;
   timeout?: number;
   output?: string;
@@ -47,7 +47,7 @@ async function handleRequest(
     await makeDryRunRequest(finalUrl, {
       method,
       data: method === "POST" ? bodyData : undefined,
-      headers: options.headers,
+      headers: options.header,
       timeout: options.timeout,
       outputPath: options.output,
       json: options.json,
@@ -69,7 +69,7 @@ async function handleRequest(
   await makePaymentRequest(finalUrl, signer, {
     method,
     body: method === "POST" && bodyData ? JSON.stringify(bodyData) : undefined,
-    headers: options.headers,
+    headers: options.header,
     rpcUrl,
     timeout: options.timeout,
     outputPath: options.output,
