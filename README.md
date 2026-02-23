@@ -66,12 +66,12 @@ x402tool GET "https://jupiter.api.corbits.dev/ultra/v1/order" \
 
 ### Custom headers
 
-Use repeatable `--header "Key: Value"` flags:
+Use repeatable headers with either `Key: Value` or `key=value`:
 
 ```bash
 x402tool GET https://api.example.com/data \
   --header "x-api-key: abc123" \
-  --header "x-client-id: my-agent"
+  --header x-client-id=my-agent
 ```
 
 ### Save to file
@@ -180,7 +180,7 @@ The network (mainnet/devnet) is determined by the API's payment response, not by
 | `--dry-run`           | Preview costs, don't pay             |
 | `--body <json>`       | JSON body (POST only)                |
 | `--query <k=v>`       | Query param (repeatable)             |
-| `--header <k:v>`      | HTTP header (repeatable, `Key: Value`) |
+| `--header <header>`   | HTTP header (repeatable)              |
 | `--rpc-url <url>`     | Solana RPC (or `SOLANA_RPC_URL` env) |
 | `--json`              | Machine-readable output              |
 | `--quiet`             | Suppress extra logs                  |

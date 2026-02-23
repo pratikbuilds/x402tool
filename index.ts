@@ -98,8 +98,8 @@ function createRequestCommand(method: "GET" | "POST") {
       parseQueryOption
     )
     .option(
-      "--header <key:value>",
-      'HTTP header (can be used multiple times), format: "Key: Value"',
+      "--header <header>",
+      'HTTP header (can be used multiple times), format: "Key: Value" or key=value',
       parseHeaderOption
     )
     .option("--timeout <ms>", "Request timeout in milliseconds", (v) => {
